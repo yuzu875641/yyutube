@@ -1,17 +1,12 @@
-import express from 'express';
-import fetch from 'node-fetch';
-import path from 'path';
-import { fileURLToPath } from 'url';
+// file: server.js
+const express = require('express');
+const axios = require('axios');
+const cors = require('cors');
+const { Innertube } = require('youtubei.js');
+const ytpl = require('ytpl');
 
-const app = express();
-const port = 3000;
-
-// ESM環境で__dirnameをエミュレート
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// 複数のInvidiousインスタンスURLを配列で管理
-const INVIDIOUS_INSTANCES = [
+// InvidiousインスタンスのURLを配列で定義（順番に試すため、この順序が重要）
+const invidiousUrls = [
   'https://invidious.reallyaweso.me',
   'https://iv.melmac.space',
   'https://inv.vern.cc',
@@ -20,147 +15,91 @@ const INVIDIOUS_INSTANCES = [
   'https://yt.omada.cafe'
 ];
 
-// EJSをテンプレートエンジンとして設定
-app.set('view engine', 'ejs');
-// viewsディレクトリを設定
-app.set('views', path.join(__dirname, 'views'));
-// 静的ファイル（CSSなど）を配信
-app.use(express.static(path.join(__dirname, 'public')));
+const app = express();
+const port = process.env.PORT || 3000;
 
-// ヘルパー関数: 複数のインスタンスを試してデータを取得
-async function fetchData(endpoint) {
-    let data = null;
-    for (const baseUrl of INVIDIOUS_INSTANCES) {
+app.use(cors());
+app.use(express.json());
+
+// 失敗したら次のURLを試すヘルパー関数
+const fetchWithFallback = async (path) => {
+    for (const baseUrl of invidiousUrls) {
         try {
-            const response = await fetch(`${baseUrl}/api/v1/${endpoint}`);
-            if (!response.ok) {
-                // HTTPエラーの場合、次のインスタンスを試す
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            data = await response.json();
-            console.log(`Successfully fetched from ${baseUrl}`);
-            break; // 成功したらループを抜ける
-        } catch (err) {
-            console.error(`Error fetching from ${baseUrl}:`, err.message);
+            const url = `${baseUrl}${path}`;
+            console.log(`Attempting to fetch from: ${url}`);
+            const response = await axios.get(url);
+            return response.data;
+        } catch (error) {
+            console.error(`Failed to fetch from ${baseUrl}:`, error.message);
+            continue;
         }
     }
-    if (!data) {
-        // すべてのインスタンスで失敗した場合
-        throw new Error('All Invidious instances failed to respond.');
-    }
-    return data;
-}
+    throw new Error('すべてのInvidiousインスタンスからの取得に失敗しました。');
+};
 
-// ルート: トップページ
-app.get('/', (req, res) => {
-    res.render('index', { title: 'YouTube Clone' });
-});
-
-// ルート: 検索結果ページ
-app.get('/search', async (req, res) => {
-    const query = req.query.q;
-    if (!query) {
-        return res.redirect('/');
-    }
-
+// API: 検索機能
+app.get('/api/search', async (req, res) => {
     try {
-        const searchResults = await fetchData(`search?q=${encodeURIComponent(query)}`);
-        res.render('results', {
-            title: `"${query}" の検索結果`,
-            query: query,
-            results: searchResults
-        });
+        const { query } = req.query;
+        if (!query) {
+            return res.status(400).json({ error: '検索クエリが必要です。' });
+        }
+        const youtube = await Innertube.create();
+        const searchResult = await youtube.search(query);
+        res.json(searchResult);
     } catch (error) {
         console.error('Search error:', error);
-        res.status(500).render('error', { title: 'エラー', message: '検索中に問題が発生しました。' });
+        res.status(500).json({ error: '検索中にエラーが発生しました。' });
     }
 });
 
-// ルート: 動画再生ページ
-app.get('/watch', async (req, res) => {
-    const videoId = req.query.v;
-    if (!videoId) {
-        return res.redirect('/');
+// API: プロキシ機能（Invidiousのブロック回避）
+app.get('/api/proxy', async (req, res) => {
+    const { url } = req.query;
+    if (!url) {
+        return res.status(400).json({ error: 'URLパラメータが必要です。' });
     }
-
     try {
-        const [videoData, commentsData] = await Promise.all([
-            fetchData(`videos/${videoId}`),
-            fetchData(`comments/${videoId}`)
-        ]);
-
-        let initialStream = null;
-
-        // ----------------------------------------------------
-        // 1. 最優先: formatStreams (映像・音声統合) の最初のものを初期ストリームとする
-        // ----------------------------------------------------
-        if (videoData.formatStreams && videoData.formatStreams.length > 0) {
-            // URLを持つ最初のストリームを選択
-            initialStream = videoData.formatStreams.find(stream => stream.url);
-        }
-
-        // ----------------------------------------------------
-        // 2. 画質選択ドロップダウン用のストリームリストを作成
-        // ----------------------------------------------------
-        // adaptiveFormats (映像のみ/音声のみ) と formatStreams (統合) の両方から、
-        // 映像を含むものを集めて高解像度順にソート
-        const videoStreams = [
-            ...(videoData.formatStreams || []),
-            ...(videoData.adaptiveFormats || [])
-        ].filter(stream => 
-            stream.qualityLabel && stream.url && (stream.type.startsWith('video/') || stream.type.includes('video/'))
-        )
-         .sort((a, b) => {
-            const aRes = parseInt(a.resolution?.replace('p', '') || '0', 10);
-            const bRes = parseInt(b.resolution?.replace('p', '') || '0', 10);
-            return bRes - aRes;
-        });
-
-        // ----------------------------------------------------
-        // 3. initialStreamがまだ見つからない場合（フォールバック）
-        // ----------------------------------------------------
-        if (!initialStream && videoStreams.length > 0) {
-             // 映像を含むストリームの中から最も高画質なものをフォールバックとして選択
-            initialStream = videoStreams[0];
-        }
-
-        if (!initialStream) {
-            throw new Error('No suitable video stream found for playback.');
-        }
-        
-        // EJSテンプレートに渡す
-        res.render('video', {
-            title: videoData.title,
-            videoData: videoData,
-            initialStream: initialStream,
-            videoStreams: videoStreams,
-            commentsData: commentsData
-        });
+        const response = await axios.get(url, { responseType: 'stream' });
+        Object.keys(response.headers).forEach(key => res.set(key, response.headers[key]));
+        response.data.pipe(res);
     } catch (error) {
-        console.error('Video page error:', error);
-        res.status(500).render('error', { title: 'エラー', message: `動画の読み込み中に問題が発生しました: ${error.message}` });
+        if (error.response) {
+            res.status(error.response.status).json({ error: `ターゲットURLからエラーが返されました: ${error.response.statusText}` });
+        } else {
+            res.status(500).json({ error: 'プロキシリクエスト中にエラーが発生しました。', details: error.message });
+        }
     }
 });
 
-// ルート: チャンネルページ
-app.get('/channel', async (req, res) => {
-    const channelId = req.query.id;
-    if (!channelId) {
-        return res.redirect('/');
-    }
-
+// API: 動画情報取得（Invidious経由）
+app.get('/api/video/:videoId', async (req, res) => {
+    const { videoId } = req.params;
     try {
-        const channelData = await fetchData(`channels/${channelId}`);
-        res.render('channel', {
-            title: channelData.author,
-            channelData: channelData
-        });
+        const data = await fetchWithFallback(`/api/v1/videos/${videoId}`);
+        if (data.recommendedVideos) {
+            data.recommendedVideos = data.recommendedVideos.map(video => ({
+                ...video,
+                url: `/api/proxy?url=${video.url}`
+            }));
+        }
+        res.json(data);
     } catch (error) {
-        console.error('Channel page error:', error);
-        res.status(500).render('error', { title: 'エラー', message: 'チャンネル情報の取得中に問題が発生しました。' });
+        res.status(500).json({ error: '動画情報の取得に失敗しました。' });
+    }
+});
+
+// API: プレイリスト情報取得
+app.get('/api/playlist/:playlistId', async (req, res) => {
+    const { playlistId } = req.params;
+    try {
+        const playlist = await ytpl(playlistId);
+        res.json(playlist);
+    } catch (error) {
+        res.status(500).json({ error: 'プレイリスト情報の取得に失敗しました。' });
     }
 });
 
 app.listen(port, () => {
-    console.log(`サーバーが http://localhost:${port} で起動しました`);
+    console.log(`Server running on http://localhost:${port}`);
 });
