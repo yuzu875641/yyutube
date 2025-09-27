@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .page-container {
+            display: flex;
+            gap: 20px;
+        }
+        .main-content {
+            flex-grow: 1;
+            max-width: 900px;
+        }
+        .sidebar {
+            width: 300px;
+        }
+        .video-details-container {
+            margin-top: 20px;
+        }
+        .comment-section {
+            margin-top: 20px;
+        }
+        .comment {
+            border-top: 1px solid #ccc;
+            padding: 10px 0;
+        }
+        .comment-author {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+        .comment-author img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+        .related-video {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .related-video img {
+            width: 150px;
+            height: 84px;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <a href="/">トップに戻る</a>
+    <div class="page-container">
+        <div class="main-content">
+            <video
+                id="my-video"
+                class="video-js vjs-default-skin"
+                controls
+                preload="auto"
+                data-setup="{}"
+            >
+                <source src="<%= initialStream.url %>" type="video/mp4">
+                <p class="vjs-no-js">
+                    動画を再生するにはJavaScriptを有効にしてください。
+                </p>
+            </video>
+
+            <div class="quality-select">
+                <label for="quality">画質:</label>
+                <select id="quality">
+                    <% videoStreams.forEach(stream => { %>
+                        <option value="<%= stream.url %>" data-resolution="<%= stream.resolution %>">
+                            <%= stream.qualityLabel %>
+                        </option>
+                    <% }); %>
+                </select>
+            </div>
+
+            <div class="video-details-container">
+                <h1><%= videoData.title %></h1>
+                <p>投稿者: <a href="/channel?id=<%= videoData.authorId %>"><%= videoData.author %></a></p>
+                <p>再生回数: <%= videoData.viewCount %></p>
+                <p>公開日: <%= videoData.publishedText %></p>
+                <h3>説明</h3>
+                <p><%= videoData.description %></p>
+
+                <div class="comment-section">
+                    <h3>コメント (<%= commentsData.commentCount || 0 %>)</h3>
+                    <% commentsData.comments.forEach(comment => { %>
+                        <div class="comment">
+                            <div class="comment-author">
+                                <img src="<%= comment.authorThumbnails[0].url %>" alt="<%= comment.author %>">
+                                <b><%= comment.author %></b>
+                            </div>
+                            <p><%= comment.content %></p>
+                            <small><%= comment.publishedText %> - 👍️ <%= comment.likeCount %></small>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <h3>関連動画</h3>
+            <% videoData.recommendedVideos.forEach(video => { %>
+                <div class="related-video">
+                    <a href="/watch?v=<%= video.videoId %>">
+                        <img src="<%= video.videoThumbnails[0].url %>" alt="<%= video.title %>">
+                    </a>
+                    <div>
+                        <a href="/watch?v=<%= video.videoId %>"><h4><%= video.title %></h4></a>
+                        <p><%= video.author %></p>
+                        <p><%= video.viewCountText %></p>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+    </div>
+
+    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const player = videojs('my-video');
+            const qualitySelect = document.getElementById('quality');
+            if (qualitySelect) {
+                qualitySelect.addEventListener('change', (event) => {
+                    const newSourceUrl = event.target.value;
+                    const currentTime = player.currentTime();
+                    const isPaused = player.paused();
+                    player.src({ type: 'video/mp4', src: newSourceUrl });
+                    player.ready(() => {
+                        player.currentTime(currentTime);
+                        if (!isPaused) {
+                            player.play();
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
