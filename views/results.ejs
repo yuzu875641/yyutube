@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <a href="/">トップに戻る</a>
+    <h1>「<%= query %>」の検索結果</h1>
+
+    <div class="results-container">
+        <% results.forEach(item => { %>
+            <div class="result-item">
+                <% if (item.type === 'video') { %>
+                    <div class="video">
+                        <img src="<%= item.videoThumbnails[0].url %>" alt="<%= item.title %>">
+                        <h3><a href="/watch?v=<%= item.videoId %>"><%= item.title %></a></h3>
+                        <p>投稿者: <a href="/channel?id=<%= item.authorId %>"><%= item.author %></a></p>
+                        <p>再生回数: <%= item.viewCount %></p>
+                    </div>
+                <% } else if (item.type === 'playlist') { %>
+                    <div class="playlist">
+                        <h3>プレイリスト: <a href="https://www.youtube.com/playlist?list=<%= item.playlistId %>" target="_blank"><%= item.title %></a></h3>
+                        <p>動画数: <%= item.videoCount %></p>
+                    </div>
+                <% } else if (item.type === 'channel') { %>
+                    <div class="channel">
+                        <img src="<%= item.authorThumbnails[0].url %>" alt="<%= item.author %>">
+                        <h3>チャンネル: <a href="/channel?id=<%= item.authorId %>"><%= item.author %></a></h3>
+                        <p>動画数: <%= item.videoCount %></p>
+                        <p>チャンネル登録者数: <%= item.subCount %></p>
+                    </div>
+                <% } else if (item.type === 'hashtag') { %>
+                    <div class="hashtag">
+                        <h3>ハッシュタグ: <%= item.title %></h3>
+                        <p>関連動画数: <%= item.videoCount %></p>
+                    </div>
+                <% } %>
+            </div>
+        <% }); %>
+    </div>
+</body>
+</html>
