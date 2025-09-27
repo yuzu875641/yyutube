@@ -12,13 +12,12 @@ const __dirname = path.dirname(__filename);
 
 // 複数のInvidiousインスタンスURLを配列で管理
 const INVIDIOUS_INSTANCES = [
-'https://invidious.reallyaweso.me',
-'https://iv.melmac.space',
-'https://inv.vern.cc',
-'https://y.com.sb',
-'https://invidious.nikkosphere.com',
-'https://yt.omada.cafe',
-'https://iv.melmac.space'
+  'https://invidious.reallyaweso.me',
+  'https://iv.melmac.space',
+  'https://inv.vern.cc',
+  'https://y.com.sb',
+  'https://invidious.nikkosphere.com',
+  'https://yt.omada.cafe'
 ];
 
 // EJSをテンプレートエンジンとして設定
@@ -26,7 +25,7 @@ app.set('view engine', 'ejs');
 // viewsディレクトリを設定
 app.set('views', path.join(__dirname, 'views'));
 // 静的ファイル（CSSなど）を配信
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ヘルパー関数: 複数のインスタンスを試してデータを取得
 async function fetchData(endpoint) {
