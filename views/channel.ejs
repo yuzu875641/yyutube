@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .channel-header {
+            text-align: center;
+        }
+        .channel-header img {
+            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+        }
+        .channel-banner {
+            width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <a href="/">トップに戻る</a>
+    <div class="channel-header">
+        <% if (channelData.authorBanners && channelData.authorBanners.length > 0) { %>
+            <img class="channel-banner" src="<%= channelData.authorBanners[0].url %>" alt="チャンネルバナー">
+        <% } %>
+        <% if (channelData.authorThumbnails && channelData.authorThumbnails.length > 0) { %>
+            <img src="<%= channelData.authorThumbnails[0].url %>" alt="<%= channelData.author %>のプロフィール画像">
+        <% } %>
+        <h1><%= channelData.author %></h1>
+        <p>チャンネル登録者数: <%= channelData.subCount %></p>
+        <p>総再生回数: <%= channelData.totalViews %></p>
+    </div>
+    <div class="channel-description">
+        <h3>概要</h3>
+        <p><%= channelData.description %></p>
+    </div>
+</body>
+</html>
