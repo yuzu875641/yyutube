@@ -6,47 +6,46 @@
     <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet" />
     <link rel="stylesheet" href="/style.css">
     <style>
+        /* レスポンシブ対応の動画コンテナ */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9のアスペクト比 */
+        }
+        .video-js {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* 既存のレイアウト */
         .page-container {
             display: flex;
+            flex-direction: column; /* 小画面では縦並び */
             gap: 20px;
         }
+
+        @media (min-width: 768px) {
+            .page-container {
+                flex-direction: row; /* 768px以上で横並び */
+            }
+        }
+
         .main-content {
             flex-grow: 1;
-            max-width: 900px;
         }
+
         .sidebar {
-            width: 300px;
+            width: 100%; /* 小画面では幅100% */
         }
-        .video-details-container {
-            margin-top: 20px;
-        }
-        .comment-section {
-            margin-top: 20px;
-        }
-        .comment {
-            border-top: 1px solid #ccc;
-            padding: 10px 0;
-        }
-        .comment-author {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 5px;
-        }
-        .comment-author img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-        }
-        .related-video {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .related-video img {
-            width: 150px;
-            height: 84px;
-            object-fit: cover;
+
+        @media (min-width: 768px) {
+            .sidebar {
+                width: 300px;
+            }
         }
     </style>
 </head>
@@ -54,18 +53,20 @@
     <a href="/">トップに戻る</a>
     <div class="page-container">
         <div class="main-content">
-            <video
-                id="my-video"
-                class="video-js vjs-default-skin"
-                controls
-                preload="auto"
-                data-setup="{}"
-            >
-                <source src="<%= initialStream.url %>" type="video/mp4">
-                <p class="vjs-no-js">
-                    動画を再生するにはJavaScriptを有効にしてください。
-                </p>
-            </video>
+            <div class="video-container">
+                <video
+                    id="my-video"
+                    class="video-js vjs-default-skin vjs-big-play-centered"
+                    controls
+                    preload="auto"
+                    data-setup="{}"
+                >
+                    <source src="<%= initialStream.url %>" type="video/mp4">
+                    <p class="vjs-no-js">
+                        動画を再生するにはJavaScriptを有効にしてください。
+                    </p>
+                </video>
+            </div>
 
             <div class="quality-select">
                 <label for="quality">画質:</label>
@@ -95,7 +96,7 @@
                                 <b><%= comment.author %></b>
                             </div>
                             <p><%= comment.content %></p>
-                            <small><%= comment.publishedText %> - 👍️ <%= comment.likeCount %></small>
+                            <small><%= comment.publishedText %> - ❤️ <%= comment.likeCount %></small>
                         </div>
                     <% }); %>
                 </div>
