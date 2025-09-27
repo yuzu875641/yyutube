@@ -3,6 +3,7 @@ body {
     padding: 20px;
     background-color: #f4f4f4;
     color: #333;
+    line-height: 1.6;
 }
 
 a {
@@ -14,6 +15,38 @@ a:hover {
     text-decoration: underline;
 }
 
+h1, h3, h4 {
+    color: #0f0f0f;
+}
+
+/* フォームのスタイル */
+form {
+    margin-bottom: 20px;
+}
+
+input[type="text"] {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 300px;
+    max-width: 80%;
+}
+
+button[type="submit"] {
+    padding: 10px 15px;
+    background-color: #c00;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+button[type="submit"]:hover {
+    background-color: #a00;
+}
+
+/* 検索結果ページのレイアウト */
 .results-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -34,60 +67,98 @@ a:hover {
     border-radius: 4px;
 }
 
-/* ページ全体のレイアウト */
+/* 動画ページ全体のレイアウト（レスポンシブ対応） */
 .page-container {
     display: flex;
+    flex-direction: column; /* 小画面では縦並び */
     gap: 20px;
 }
-.main-content {
-    flex-grow: 1;
-    max-width: 900px;
-}
-.sidebar {
-    width: 300px;
+
+@media (min-width: 768px) {
+    .page-container {
+        flex-direction: row; /* 768px以上で横並び */
+    }
 }
 
-/* 動画ページ用 */
-.video-js {
-    width: 100%;
-    height: auto;
+.main-content {
+    flex-grow: 1;
 }
+
+.sidebar {
+    width: 100%; /* 小画面では幅100% */
+}
+
+@media (min-width: 768px) {
+    .sidebar {
+        width: 300px;
+    }
+}
+
+/* 動画プレイヤーのスタイル */
+.video-container {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 56.25%; /* 16:9のアスペクト比 */
+}
+
+.video-js {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+}
+
 .quality-select {
     margin-top: 10px;
 }
 
-/* コメント */
+/* コメントセクションのスタイル */
 .comment-section {
     margin-top: 20px;
 }
+
 .comment {
-    border-top: 1px solid #ccc;
-    padding: 10px 0;
+    border-top: 1px solid #e0e0e0;
+    padding: 15px 0;
 }
+
 .comment-author {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-bottom: 5px;
 }
+
 .comment-author img {
     width: 40px;
     height: 40px;
     border-radius: 50%;
 }
 
-/* 関連動画 */
+/* 関連動画のスタイル */
 .related-video {
     display: flex;
     gap: 10px;
     margin-bottom: 15px;
-    border-radius: 8px;
-    overflow: hidden;
     background-color: #fff;
+    border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    overflow: hidden;
 }
+
 .related-video img {
     width: 150px;
     height: 84px;
     object-fit: cover;
+}
+
+.related-video a {
+    text-decoration: none;
+    color: #0f0f0f;
+}
+
+.related-video a:hover {
+    text-decoration: none;
 }
