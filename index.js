@@ -34,16 +34,18 @@ async function fetchData(endpoint) {
         try {
             const response = await fetch(`${baseUrl}/api/v1/${endpoint}`);
             if (!response.ok) {
+                // HTTPエラーの場合、次のインスタンスを試す
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             data = await response.json();
             console.log(`Successfully fetched from ${baseUrl}`);
-            break;
+            break; // 成功したらループを抜ける
         } catch (err) {
             console.error(`Error fetching from ${baseUrl}:`, err.message);
         }
     }
     if (!data) {
+        // すべてのインスタンスで失敗した場合
         throw new Error('All Invidious instances failed to respond.');
     }
     return data;
@@ -82,64 +84,51 @@ app.get('/watch', async (req, res) => {
     }
 
     try {
-        const videoData = await fetchData(`videos/${videoId}`);
-        const commentsData = await fetchData(`comments/${videoId}`);
+        const [videoData, commentsData] = await Promise.all([
+            fetchData(`videos/${videoId}`),
+            fetchData(`comments/${videoId}`)
+        ]);
 
-        // ----------------------------------------------------
-        // 動画埋め込み用の初期ストリームを選択 (formatStreamsを優先)
-        // ----------------------------------------------------
         let initialStream = null;
 
-        // まず formatStreams から映像と音声が統合されたMP4ストリームを探す
+        // ----------------------------------------------------
+        // 1. 最優先: formatStreams (映像・音声統合) の最初のものを初期ストリームとする
+        // ----------------------------------------------------
         if (videoData.formatStreams && videoData.formatStreams.length > 0) {
-            initialStream = videoData.formatStreams.find(stream =>
-                stream.container === 'mp4' && stream.url && stream.qualityLabel
-            );
-        }
-
-        // formatStreams に適切なものがなければ、adaptiveFormats から探す
-        // ここでは映像と音声が分離されていない（=統合されている可能性が高い）MP4を優先
-        if (!initialStream && videoData.adaptiveFormats && videoData.adaptiveFormats.length > 0) {
-            initialStream = videoData.adaptiveFormats.find(stream =>
-                stream.container === 'mp4' && stream.url && stream.qualityLabel && !stream.audioQuality
-            );
-        }
-
-        // 最終的に見つからなければ、利用可能な最初のストリームをフォールバックとして使用
-        if (!initialStream) {
-             const allAvailableStreams = [
-                ...(videoData.formatStreams || []),
-                ...(videoData.adaptiveFormats || [])
-            ].filter(stream => stream.url && stream.qualityLabel)
-             .sort((a, b) => {
-                const aRes = parseInt(a.resolution?.replace('p', '') || '0', 10);
-                const bRes = parseInt(b.resolution?.replace('p', '') || '0', 10);
-                return bRes - aRes;
-            });
-            initialStream = allAvailableStreams[0];
+            // URLを持つ最初のストリームを選択
+            initialStream = videoData.formatStreams.find(stream => stream.url);
         }
 
         // ----------------------------------------------------
-        // 画質選択ドロップダウン用のストリームリストを作成
-        // (adaptiveFormats と formatStreams の両方から、映像を含むものを集める)
+        // 2. 画質選択ドロップダウン用のストリームリストを作成
         // ----------------------------------------------------
+        // adaptiveFormats (映像のみ/音声のみ) と formatStreams (統合) の両方から、
+        // 映像を含むものを集めて高解像度順にソート
         const videoStreams = [
             ...(videoData.formatStreams || []),
             ...(videoData.adaptiveFormats || [])
         ].filter(stream => 
-            stream.qualityLabel && stream.url && stream.type.startsWith('video/')
-        ) // 映像ストリームのみをフィルタリング
+            stream.qualityLabel && stream.url && (stream.type.startsWith('video/') || stream.type.includes('video/'))
+        )
          .sort((a, b) => {
             const aRes = parseInt(a.resolution?.replace('p', '') || '0', 10);
             const bRes = parseInt(b.resolution?.replace('p', '') || '0', 10);
             return bRes - aRes;
         });
 
-        if (!initialStream) {
-            // initialStreamがどうしても見つからなかった場合のエラーハンドリング
-            throw new Error('No suitable video stream found for playback.');
+        // ----------------------------------------------------
+        // 3. initialStreamがまだ見つからない場合（フォールバック）
+        // ----------------------------------------------------
+        if (!initialStream && videoStreams.length > 0) {
+             // 映像を含むストリームの中から最も高画質なものをフォールバックとして選択
+            initialStream = videoStreams[0];
         }
 
+        if (!initialStream) {
+            throw new Error('No suitable video stream found for playback.');
+        }
+        
+        // EJSテンプレートに渡す
         res.render('video', {
             title: videoData.title,
             videoData: videoData,
