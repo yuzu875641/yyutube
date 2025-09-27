@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <h1><%= title %></h1>
+    <form action="/search" method="GET">
+        <input type="text" name="q" placeholder="検索ワードを入力" required>
+        <button type="submit">検索</button>
+    </form>
+</body>
+</html>
